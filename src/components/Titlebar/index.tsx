@@ -38,7 +38,7 @@ export const Titlebar: FC = () => {
 				/>
 			</div>
 			<div className="app-name-container select-none">
-				<p>Electron React Tailwind Template</p>
+				<p>Interview with Smeet Barot @ Infinite</p>
 			</div>
 			<div className="window-controls-container">
 				<button

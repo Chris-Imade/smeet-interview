@@ -3,6 +3,7 @@ const { join } = require("path");
 const { autoUpdater } = require("electron-updater");
 const remote = require("@electron/remote/main");
 const config = require("./config");
+require('./print'); // Import the print functionality
 
 exports.createMainWindow = async () => {
 	const window = new BrowserWindow({
