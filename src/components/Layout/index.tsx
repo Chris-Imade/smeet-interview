@@ -29,9 +29,9 @@ export const Layout: FC<ILayout> = ({ children }) => {
 	}, []);
 
 	return (
-		<>
+		<div>
 			<Titlebar />
 			<div className="select-none">{children}</div>
-		</>
+		</div>
 	);
 };
