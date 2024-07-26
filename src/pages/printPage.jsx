@@ -1,160 +1,101 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Layout } from "../components/Layout";
 import PrintButton from "../components/PrintButton";
 import { useSymbologyScanner } from "@use-symbology-scanner/react";
-import { debounce } from "lodash";
-// const { ipcRenderer } = window.require("electron");
+
+const { ipcRenderer } = window.require("electron");
 
 export const PrintPage = () => {
-	const [barcode, setBarcode] = useState(null);
+	const [barcode, setBarcode] = useState("");
 	const [error, setError] = useState(null);
-	const [isScanning, setIsScanning] = useState(false); // Indicate scanning progress
-	const lastScanTime = useRef(0);
 	const ref = useRef(null);
 
-	const handleSymbol = useCallback((symbol) => {
-		try {
-			const now = Date.now();
-			const timeDiff = now - lastScanTime.current;
-			lastScanTime.current = now;
+	// Validation logic for different barcode types
+	const validateBarcode = (barcode) => {
+		if (barcode.length < 8 || barcode.length > 20) return false;
 
-			// Check if scan delay is reasonable
-			if (timeDiff < symbol.length * 100) {
-				setBarcode((prevBarcode) => prevBarcode + symbol);
-				setIsScanning(true); // Indicate scanning in progress
-			} else {
-				console.log("Ignored input:", symbol);
-			}
-		} catch (error) {
-			console.error("Error processing barcode scan:", error);
-			setError("Failed to process barcode scan.");
+		if (barcode.startsWith("0")) {
+			return validateEAN13(barcode);
+		} else if (barcode.startsWith("1")) {
+			return validateCode128(barcode);
+		} else if (barcode.startsWith("2")) {
+			return validateUPC(barcode);
+		} else {
+			return validateUnknownFormat(barcode);
+		}
+	};
+
+	const validateEAN13 = (barcode) => {
+		if (barcode.length !== 13) return false;
+		let sum = 0;
+		for (let i = 0; i < 12; i++) {
+			sum += (i % 2 === 0 ? 1 : 3) * parseInt(barcode.charAt(i), 10);
+		}
+		const checkDigit = (10 - (sum % 10)) % 10;
+		return checkDigit === parseInt(barcode.charAt(12), 10);
+	};
+
+	const validateCode128 = (barcode) => {
+		// Add your validation logic here for Code 128
+		return barcode.length > 0; // Placeholder
+	};
+
+	const validateUPC = (barcode) => {
+		if (barcode.length !== 12) return false;
+		let sum = 0;
+		for (let i = 0; i < 11; i++) {
+			sum += (i % 2 === 0 ? 3 : 1) * parseInt(barcode.charAt(i), 10);
+		}
+		const checkDigit = (10 - (sum % 10)) % 10;
+		return checkDigit === parseInt(barcode.charAt(11), 10);
+	};
+
+	const validateUnknownFormat = (barcode) => {
+		// Implement your validation logic for unknown formats here
+		// For demonstration, this will accept barcodes with 10 to 15 digits
+		return /^[0-9]{10,15}$/.test(barcode);
+	};
+
+	// handleCompleteScan wrapped in useCallback
+	const handleCompleteScan = useCallback((barcode) => {
+		if (validateBarcode(barcode)) {
+			console.log("Valid barcode:", barcode);
+			ipcRenderer.send("barcode-scanned", barcode);
+			setBarcode(""); // Reset barcode state for next scan
+		} else {
+			setError("Invalid barcode scanned");
 		}
 	}, []);
 
-	useSymbologyScanner(handleSymbol, { target: ref });
-
-	const handleCompleteScan = useCallback(
-		debounce((scannedBarcode) => {
-			// Validate scanned barcode
-			if (validateBarcode(scannedBarcode)) {
-				setBarcode(scannedBarcode);
-				console.log("Scanned barcode:", scannedBarcode);
-			} else {
-				setError("Invalid barcode format");
-			}
-			setIsScanning(false); // Indicate scanning complete
-		}, 500), // Adjust debounce time as needed
-		[validateBarcode],
-	);
-
-	useEffect(() => {
-		if (barcode) {
+	// handleSymbol wrapped in useCallback with handleCompleteScan as dependency
+	const handleSymbol = useCallback((symbol) => {
+		if (symbol === "\r" || symbol === "\n") {
 			handleCompleteScan(barcode);
-		}
-	}, [barcode, handleCompleteScan]);
-
-	function validateBarcode(barcode) {
-		// Basic length check
-		if (barcode.length < 8 || barcode.length > 20) {
-			setError("Not a valid barcode, try again!");
-			console.log("Invalid barcode, try again!");
-			return false;
-		}
-
-		// More specific validation based on barcode type
-		if (barcode.startsWith("0")) {
-			// EAN-13 or UPC validation
-			if (barcode.length === 12) {
-				return validateUPC(barcode);
-			} else if (barcode.length === 13) {
-				return validateEAN13(barcode);
-			} else {
-				return false;
-			}
-		} else if (barcode.startsWith("1")) {
-			// Code 128 validation
-			return validateCode128(barcode);
 		} else {
-			// Handle other barcode types or unknown formats
-			console.log("Invalid Format!");
-			setError("Invalid Format!");
-			return false;
+			setBarcode((prevBarcode) => prevBarcode + symbol);
+			setError(null); // Clear any previous errors
 		}
-	}
+	}, [handleCompleteScan, barcode]);
 
-	function validateEAN13(barcode) {
-		if (barcode.length !== 13) return false;
-
-		// EAN-13 checksum calculation
-		let sum = 0;
-		for (let i = 0; i < 12; i++) {
-			let num = parseInt(barcode[i], 10);
-			sum += i % 2 === 0 ? num : num * 3;
-		}
-
-		let checkDigit = (10 - (sum % 10)) % 10;
-		return checkDigit === parseInt(barcode[12], 10);
-	}
-
-	function validateUPC(barcode) {
-		if (barcode.length !== 12) return false;
-
-		// UPC-A checksum calculation
-		let sum = 0;
-		for (let i = 0; i < 11; i++) {
-			let num = parseInt(barcode[i], 10);
-			sum += i % 2 === 0 ? num * 3 : num;
-		}
-
-		let checkDigit = (10 - (sum % 10)) % 10;
-		return checkDigit === parseInt(barcode[11], 10);
-	}
-
-	function validateCode128(barcode) {
-		if (barcode.length < 6) return false;
-
-		// Basic Code 128 validation: Check for valid ASCII range
-		// Code 128 includes all 128 ASCII characters, from 32 to 126.
-		for (let i = 0; i < barcode.length; i++) {
-			let charCode = barcode.charCodeAt(i);
-			if (charCode < 32 || charCode > 126) {
-				return false;
-			}
-		}
-		return true;
-	}
+	useSymbologyScanner(handleSymbol, { target: ref });
 
 	return (
 		<Layout>
 			<div
 				ref={ref}
 				className="w-full h-[100vh] bg-slate-900"
-				tabIndex={0}
+				tabIndex={0} // Make the <div> focusable
 			>
 				<div className="flex flex-col justify-center items-center w-full h-full">
-					<h1 className="text-white text-center text-xl uppercase pt-12 ">
+					<h1 className="text-white text-center text-xl uppercase pt-12">
 						Testing Thermal Print functionality
 					</h1>
 					<PrintButton />
-					<div className="text-white mt-6 underline mb-4">
-						Barcode Information
-					</div>
-					{barcode && (
-						<div className="text-white text-2xl font-semibold">
-							Scanned Barcode: {barcode}
-						</div>
-					)}
-					{error && (
-						<div className="text-red-500 text-xl my-4">{error}</div>
-					)}
-					{isScanning && (
-						<div className="text-lime-300 text-xl font-semibold">
-							Scanning...
-						</div>
-					)}
+					<div className="text-white mt-6">My JSX</div>
+					{barcode && <div>Scanned Barcode: {barcode}</div>}
+					{error && <div className="text-red-500">{error}</div>}
 				</div>
 			</div>
 		</Layout>
 	);
 };
-
