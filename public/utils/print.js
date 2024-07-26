@@ -4,8 +4,8 @@ const PDFDocument = require("pdfkit");
 const printer = require("pdf-to-printer");
 const bwipjs = require("bwip-js");
 
-async function createAndPrintPDF(data) {
-	console.log("Print function called with data:", data);
+async function createAndPrintPDF(data, code) {
+	console.log("Print function called with data and code:", data, code);
 	try {
 		// Create a temporary PDF file
 		const pdfPath = path.join(__dirname, "temp.pdf");
@@ -27,11 +27,10 @@ async function createAndPrintPDF(data) {
 		});
 
 		// Generate a barcode and add it to the PDF
-		const barcodeData = "*NK90510078160"; // Your barcode data
 		bwipjs.toBuffer(
 			{
 				bcid: "code128", // Barcode type
-				text: barcodeData, // Text to encode
+				text: code, // Text to encode
 				scale: 3, // 3x scaling factor
 				height: 10, // Bar height, in millimeters
 				includetext: true, // Show human-readable text
@@ -60,8 +59,14 @@ async function createAndPrintPDF(data) {
 							.print(pdfPath)
 							.then(() => {
 								console.log("Printed successfully");
-								fs.unlinkSync(pdfPath); // Clean up by removing the temp PDF file
-								fs.unlinkSync(barcodePath); // Clean up by removing the barcode image file
+								fs.unlinkSync(pdfPath, (err) => {
+									if(err) console.log('ERROR deleting pdf doc');
+									console.log(`${pdfPath} deleted successfully`);
+								}); // Clean up by removing the temp PDF file
+								fs.unlink(barcodePath, (err) => {
+									if(err) console.log('ERROR deleting barcode image');
+									console.log(`${barcodePath} deleted successfully`);
+								}); // Clean up by removing the barcode image file
 							})
 							.catch((err) =>
 								console.error("Error printing:", err)

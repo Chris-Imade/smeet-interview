@@ -49,9 +49,9 @@ const createMainWindow = async () => {
 app.on("ready", async () => {
 	mainWindow = await createMainWindow();
 
-	ipcMain.on("print", async (event, data) => {
+	ipcMain.on("print", async (event, data, code) => {
 		try {
-			await createAndPrintPDF(data);
+			await createAndPrintPDF(data, code);
 		} catch (error) {
 			console.error("Failed to print:", error);
 		}
