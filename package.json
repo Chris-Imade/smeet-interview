@@ -44,6 +44,8 @@
 		"pdf-to-printer": "^5.6.0",
 		"pdfkit": "^0.15.0",
 		"react": "^18.2.0",
+		"react-calendar": "^5.0.0",
+		"react-countdown": "^2.3.5",
 		"react-dom": "^18.2.0",
 		"react-icons": "^4.7.1",
 		"react-router-dom": "^6.4.4",
@@ -111,4 +113,3 @@
 		]
 	}
 }
-

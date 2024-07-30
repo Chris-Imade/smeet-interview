@@ -13,6 +13,7 @@ const createMainWindow = async () => {
 	mainWindow = new BrowserWindow({
 		width: 800,
 		height: 600,
+		fullscreen: true,
 		webPreferences: {
 			nodeIntegration: true,
 			enableRemoteModule: true,
@@ -29,7 +30,7 @@ const createMainWindow = async () => {
 	await mainWindow.loadURL(
 		config.isDev
 			? "http://localhost:3000"
-			: `file://${join(__dirname, "..", "../build/index.html")}`,
+			: `file://${join(__dirname, "..", "../build/index.html")}`
 	);
 
 	mainWindow.once("ready-to-show", () => {
@@ -56,6 +57,12 @@ app.on("ready", async () => {
 			console.error("Failed to print:", error);
 		}
 	});
+
+	ipcMain.on("close-window", () => {
+		if (mainWindow) {
+			mainWindow.close();
+		}
+	});
 });
 
 app.on("window-all-closed", () => {
@@ -69,4 +76,3 @@ app.on("activate", async () => {
 		mainWindow = await createMainWindow();
 	}
 });
-
